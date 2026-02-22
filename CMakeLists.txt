@@ -1,21 +1,34 @@
 cmake_minimum_required(VERSION 4.1)
-project(platform)
+project(platform LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 26)
+include(cmake/DetriDependencies.cmake)
+
+option(DETRI_PLATFORM_BUILD_TESTS "Whether to build platform integration tests" ${PROJECT_IS_TOP_LEVEL})
 
 add_library(detri_platform STATIC)
 add_library(detri::platform ALIAS detri_platform)
 
-include(FetchContent)
+set_target_properties(detri_platform PROPERTIES
+    CXX_STANDARD 26
+    CXX_EXTENSIONS OFF
+)
 
-FetchContent_Declare(detri_except
-    GIT_REPOSITORY https://github.com/detri-engine/except.git
-    GIT_TAG main
+detri_resolve_dependency(
+    TARGET detri::except
+    PACKAGE detri_except
+    FETCHCONTENT_NAME detri_except
+    FETCHCONTENT_DECLARE_ARGS
+        GIT_REPOSITORY https://github.com/detri-engine/except.git
+        GIT_TAG main
 )
-FetchContent_Declare(mio
-    GIT_REPOSITORY https://github.com/vimpunk/mio
+
+detri_resolve_dependency(
+    TARGET mio::mio
+    PACKAGE mio
+    FETCHCONTENT_NAME mio
+    FETCHCONTENT_DECLARE_ARGS
+        GIT_REPOSITORY https://github.com/vimpunk/mio
 )
-FetchContent_MakeAvailable(detri_except mio)
 
 if (MSVC)
     target_compile_definitions(detri_platform PUBLIC
@@ -26,16 +39,27 @@ if (MSVC)
     )
 endif()
 
-target_sources(detri_platform PUBLIC FILE_SET HEADERS
-    BASE_DIRS src
-    FILES src/detri/window.hpp src/detri/platform_event.hpp src/detri/platform.hpp src/detri/platform_exceptions.hpp
+target_sources(detri_platform
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS src
+        FILES
+            src/detri/window.hpp
+            src/detri/platform_event.hpp
+            src/detri/platform.hpp
+            src/detri/platform_exceptions.hpp
 )
 
 if (MSVC)
-    target_sources(detri_platform PRIVATE src/detri/window_win32.cpp src/detri/platform_win32.cpp)
+    target_sources(detri_platform PRIVATE
+        src/detri/window_win32.cpp
+        src/detri/platform_win32.cpp
+    )
 endif()
 
 target_link_libraries(detri_platform PRIVATE detri::except mio::mio)
 
-add_executable(window_test src/test/window_integration_test.cpp)
-target_link_libraries(window_test PRIVATE detri::platform detri::except)
+if (PROJECT_IS_TOP_LEVEL AND DETRI_PLATFORM_BUILD_TESTS)
+    add_executable(window_test src/test/window_integration_test.cpp)
+    target_link_libraries(window_test PRIVATE detri::platform detri::except)
+endif()
